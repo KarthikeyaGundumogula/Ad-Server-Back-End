@@ -1,0 +1,19 @@
+{
+  "name": "ad-server-back-end",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KarthikeyaGundumogula/Ad-Server-Back-End.git"
+  },
+  "author": "Karthikeya",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/KarthikeyaGundumogula/Ad-Server-Back-End/issues"
+  },
+  "homepage": "https://github.com/KarthikeyaGundumogula/Ad-Server-Back-End#readme"
+}
