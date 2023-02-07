@@ -9,7 +9,8 @@ contract Server is ERC1155URIStorage {
     Counters.Counter public AdIds;
     Counters.Counter public PublisherIds;
     Counters.Counter public AdvertiserIds;
-    uint256 nativeTokenId;
+    address public owner;
+    uint256 public nativeTokenId;
     uint256 public nativeTokenPrice;
     address[] public publishersList;
     uint256[] public runningCampaignIdsList;
@@ -34,13 +35,13 @@ contract Server is ERC1155URIStorage {
         uint256 displayReward;
     }
 
-    mapping(uint256 => Ad) IdToCampaign;
+    mapping(uint256 => Ad) public IdToCampaign;
+    mapping(uint256 => address) public AdToPublisher;
+    mapping(uint256 => Publisher) public IdToPublisher;
+    mapping(address => uint256[]) public AdIdsListByAdvertiser;
+    mapping(address => uint256[]) public runningCampaignIdsListByAdvertiser;
     mapping(uint256 => bool) IsCampaignCreated;
-    mapping(uint256 => address) AdToPublisher;
     mapping(address => bool) IsPublisher;
-    mapping(uint256 => Publisher) IdToPublisher;
-    mapping(address => uint256[]) AdIdsListByAdvertiser;
-    mapping(address => uint256[]) runningCampaignIdsListByAdvertiser;
     mapping(uint256 => mapping(address => bool)) IsPublisherAdded;
 
     event AdCreated(
@@ -98,6 +99,7 @@ contract Server is ERC1155URIStorage {
     constructor() ERC1155("") {
         nativeTokenPrice = 0.000001 ether;
         nativeTokenId = AdIds.current();
+        owner = msg.sender;
     }
 
     function buyAdTokens() public {
@@ -350,32 +352,5 @@ contract Server is ERC1155URIStorage {
             IdToPublisher[_adID].clickReward,
             ""
         );
-    }
-
-    function getAdCampaignsByAdvertiser(
-        address _advertiser
-    ) public view returns (uint256[] memory) {
-        //this function returns the list of Ad campaigns
-        return runningCampaignIdsListByAdvertiser[_advertiser];
-    }
-
-    function getAd(uint256 _id) public view returns (Ad memory) {
-        //this function returns the Ad details
-        return IdToCampaign[_id];
-    }
-
-    function getPublishers() public view returns (address[] memory) {
-        //this function returns the list of publishers
-        return publishersList;
-    }
-
-    function getCurrentFundsForAd(uint256 _id) public view returns (uint256) {
-        //this function returns the current funds for the Ad
-        return IdToCampaign[_id].currentFunds;
-    }
-
-    function getRunningCampaigns() public view returns (uint256[] memory) {
-        //this function returns the list of running campaigns
-        return runningCampaignIdsList;
     }
 }
