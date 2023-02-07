@@ -11,6 +11,7 @@ contract Server is ERC1155URIStorage, Ownable {
     Counters.Counter public PublisherIds;
     uint256 nativeTokenId;
     uint256 public nativeTokenPrice;
+    address[] public publishersList;
 
     struct Ad {
         uint256 id;
@@ -68,6 +69,27 @@ contract Server is ERC1155URIStorage, Ownable {
         uint256 clicks,
         uint256 currentFunds,
         address Advertiser
+    );
+
+    event Click(
+        uint256 id,
+        uint256 clicks,
+        uint256 currentFunds,
+        address Advertiser
+    );
+
+    event PublisherCreated(
+        uint256 id,
+        uint256 clickReward,
+        uint256 displayReward,
+        address publisher
+    );
+
+    event AdServed(
+        uint256 id,
+        uint256 currentFunds,
+        address Advertiser,
+        address publisher
     );
 
     constructor() ERC1155("") {
@@ -195,6 +217,8 @@ contract Server is ERC1155URIStorage, Ownable {
             _displayReward
         );
         IsPublisher[msg.sender] = true;
+        publishersList.push(msg.sender);
+        emit PublisherCreated(id, _clickReward, _displayReward, msg.sender);
     }
 
     function SubscribetoPublisher(uint256 _id, address _publisher) public {
@@ -269,9 +293,34 @@ contract Server is ERC1155URIStorage, Ownable {
             IdToPublisher[_id].displayReward,
             ""
         );
+
+        emit AdServed(
+            _id,
+            IdToCampaign[_id].currentFunds,
+            IdToCampaign[_id].Advertiser,
+            _publisher
+        );
         return uri(IdToCampaign[_id].id);
     }
-    
+
+    function transferClickReward(uint256 _adID, address _publisher) public {
+        require(
+            IdToCampaign[_adID].campaignRunning == true,
+            "Campaign is not running"
+        );
+        require(IsPublisher[_publisher] == true, "Publisher is not registered");
+        require(
+            IsPublisherAdded[_adID][_publisher] == true,
+            "Publisher is not added"
+        );
+        _safeTransferFrom(
+            IdToCampaign[_adID].Advertiser,
+            _publisher,
+            nativeTokenId,
+            IdToPublisher[_adID].clickReward,
+            ""
+        );
+    }
 
     function getAd() public {
         //this function returns the Ad details
@@ -279,10 +328,6 @@ contract Server is ERC1155URIStorage, Ownable {
 
     function getPublishers() public {
         //this function returns the list of publishers
-    }
-
-    function getSubscribers() public {
-        //this function returns the list of subscribers
     }
 
     function getCurrentFundsForAd() public {
