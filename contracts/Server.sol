@@ -3,15 +3,16 @@
 pragma solidity ^0.8.13;
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155URIStorage.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Server is ERC1155URIStorage, Ownable {
+contract Server is ERC1155URIStorage {
     using Counters for Counters.Counter;
     Counters.Counter public AdIds;
     Counters.Counter public PublisherIds;
+    Counters.Counter public AdvertiserIds;
     uint256 nativeTokenId;
     uint256 public nativeTokenPrice;
     address[] public publishersList;
+    uint256[] public runningCampaignIdsList;
 
     struct Ad {
         uint256 id;
@@ -38,6 +39,8 @@ contract Server is ERC1155URIStorage, Ownable {
     mapping(uint256 => address) AdToPublisher;
     mapping(address => bool) IsPublisher;
     mapping(uint256 => Publisher) IdToPublisher;
+    mapping(address => uint256[]) AdIdsListByAdvertiser;
+    mapping(address => uint256[]) runningCampaignIdsListByAdvertiser;
     mapping(uint256 => mapping(address => bool)) IsPublisherAdded;
 
     event AdCreated(
@@ -126,6 +129,7 @@ contract Server is ERC1155URIStorage, Ownable {
             false
         );
         IsCampaignCreated[id] = true;
+        AdIdsListByAdvertiser[msg.sender].push(id);
 
         emit AdCreated(
             id,
@@ -156,6 +160,8 @@ contract Server is ERC1155URIStorage, Ownable {
             "Insufficient funds"
         );
         IdToCampaign[Id].campaignRunning = true;
+        runningCampaignIdsList.push(Id);
+        runningCampaignIdsListByAdvertiser[msg.sender].push(Id);
         setApprovalForAll(address(this), true);
         emit campaignStarted(Id, IdToCampaign[Id].totalFunds, msg.sender, true);
     }
@@ -169,6 +175,30 @@ contract Server is ERC1155URIStorage, Ownable {
         );
         setApprovalForAll(address(this), false);
         IdToCampaign[_id].campaignRunning = false;
+        for (uint256 i = 0; i < runningCampaignIdsList.length; i++) {
+            if (runningCampaignIdsList[i] == _id) {
+                runningCampaignIdsList[i] = runningCampaignIdsList[
+                    runningCampaignIdsList.length - 1
+                ];
+                runningCampaignIdsList.pop();
+                break;
+            }
+        }
+        for (
+            uint256 i = 0;
+            i < runningCampaignIdsListByAdvertiser[msg.sender].length;
+            i++
+        ) {
+            if (runningCampaignIdsListByAdvertiser[msg.sender][i] == _id) {
+                runningCampaignIdsListByAdvertiser[msg.sender][
+                    i
+                ] = runningCampaignIdsListByAdvertiser[msg.sender][
+                    runningCampaignIdsListByAdvertiser[msg.sender].length - 1
+                ];
+                runningCampaignIdsListByAdvertiser[msg.sender].pop();
+                break;
+            }
+        }
     }
 
     function addFundsToCampaign(uint256 _id, uint256 amount) public {
@@ -322,19 +352,30 @@ contract Server is ERC1155URIStorage, Ownable {
         );
     }
 
-    function getAd() public {
+    function getAdCampaignsByAdvertiser(
+        address _advertiser
+    ) public view returns (uint256[] memory) {
+        //this function returns the list of Ad campaigns
+        return runningCampaignIdsListByAdvertiser[_advertiser];
+    }
+
+    function getAd(uint256 _id) public view returns (Ad memory) {
         //this function returns the Ad details
+        return IdToCampaign[_id];
     }
 
-    function getPublishers() public {
+    function getPublishers() public view returns (address[] memory) {
         //this function returns the list of publishers
+        return publishersList;
     }
 
-    function getCurrentFundsForAd() public {
+    function getCurrentFundsForAd(uint256 _id) public view returns (uint256) {
         //this function returns the current funds for the Ad
+        return IdToCampaign[_id].currentFunds;
     }
 
-    function getRunningCampaigns() public {
+    function getRunningCampaigns() public view returns (uint256[] memory) {
         //this function returns the list of running campaigns
+        return runningCampaignIdsList;
     }
 }
