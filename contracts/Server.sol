@@ -100,6 +100,7 @@ contract Server is ERC1155URIStorage {
         nativeTokenPrice = 0.000001 ether;
         nativeTokenId = AdIds.current();
         owner = msg.sender;
+        _mint(owner, nativeTokenId, 100000 ether, "");
     }
 
     function buyAdTokens() public {
