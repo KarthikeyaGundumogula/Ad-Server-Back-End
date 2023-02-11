@@ -17,8 +17,6 @@ contract Server is Token {
 
     struct Ad {
         uint256 id;
-        uint256 clickReward;
-        uint256 displayReward;
         uint256 totalFunds;
         uint256 currentFunds;
         uint256 clicks;
@@ -41,6 +39,7 @@ contract Server is Token {
     mapping(uint256 => Publisher) public IdToPublisher;
     mapping(address => uint256) public PublisherAddressToId;
     mapping(uint256 => string) public PublisherIdToSite;
+    mapping(uint256 => uint256[]) public AdIdsListByPublisher;
     mapping(address => uint256[]) public AdIdsListByAdvertiser;
     mapping(address => uint256[]) public runningCampaignIdsListByAdvertiser;
     mapping(uint256 => bool) IsCampaignCreated;
@@ -49,8 +48,6 @@ contract Server is Token {
 
     event AdCreated(
         uint256 id,
-        uint256 clickReward,
-        uint256 displayReward,
         uint256 totalFunds,
         uint256 clicks,
         address Advertiser,
@@ -105,8 +102,6 @@ contract Server is Token {
 
     function createAd(
         string memory _AdURI,
-        uint256 _clickReward,
-        uint256 _displayReward,
         uint256 _totalFunds
     ) public returns (uint256) {
         // we will make every ad as an NFT
@@ -117,8 +112,6 @@ contract Server is Token {
         _setURI(id, _AdURI);
         IdToCampaign[id] = Ad(
             id,
-            _clickReward,
-            _displayReward,
             _totalFunds,
             _totalFunds,
             0,
@@ -130,15 +123,7 @@ contract Server is Token {
         IsCampaignCreated[id] = true;
         AdIdsListByAdvertiser[msg.sender].push(id);
 
-        emit AdCreated(
-            id,
-            _clickReward,
-            _displayReward,
-            _totalFunds,
-            0,
-            msg.sender,
-            false
-        );
+        emit AdCreated(id, _totalFunds, 0, msg.sender, false);
 
         return id;
     }
@@ -281,6 +266,7 @@ contract Server is Token {
         );
         IdToCampaign[_id].PublisherIds.push(PublisherAddressToId[_publisher]);
         IsPublisherAdded[_id][_publisher] = true;
+        IdToPublisher[PublisherAddressToId[_publisher]].AdIds.push(_id);
     }
 
     function UnSubscribetoPublisher(uint256 _id, address _publisher) public {
@@ -303,20 +289,27 @@ contract Server is Token {
                 IsPublisherAdded[_id][_publisher] = false;
             }
         }
+        for (uint i = 0; i < IdToPublisher[publisherId].AdIds.length; i++) {
+            if (IdToPublisher[publisherId].AdIds[i] == _id) {
+                IdToPublisher[publisherId].AdIds[i] = IdToPublisher[publisherId]
+                    .AdIds[IdToPublisher[publisherId].AdIds.length - 1];
+                IdToPublisher[publisherId].AdIds.pop();
+            }
+        }
     }
 
     function serveAd(
         uint256 _id,
-        address _publisher
+        address _Advertiser
     ) public returns (string memory adURI) {
         //this function serves the Ad to the user
         require(
             IdToCampaign[_id].campaignRunning == true,
             "Campaign is not running"
         );
-        require(IsPublisher[_publisher] == true, "Publisher is not registered");
+        require(IsPublisher[msg.sender] == true, "Publisher is not registered");
         require(
-            IsPublisherAdded[_id][_publisher] == true,
+            IsPublisherAdded[_id][msg.sender] == true,
             "Publisher is not added"
         );
         require(
@@ -328,8 +321,8 @@ contract Server is Token {
         IdToCampaign[_id].currentFunds -= IdToPublisher[_id].displayReward;
         IdToCampaign[_id].display += 1;
         _safeTransferFrom(
-            IdToCampaign[_id].Advertiser,
-            _publisher,
+            _Advertiser,
+            msg.sender,
             nativeTokenId,
             IdToPublisher[_id].displayReward,
             ""
@@ -339,7 +332,7 @@ contract Server is Token {
             _id,
             IdToCampaign[_id].currentFunds,
             IdToCampaign[_id].Advertiser,
-            PublisherAddressToId[_publisher]
+            PublisherAddressToId[msg.sender]
         );
         return uri(IdToCampaign[_id].id);
     }

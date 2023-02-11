@@ -5,6 +5,7 @@ typechain
 typechain-types
 
 # Hardhat files
+.env
 cache
 artifacts
 
