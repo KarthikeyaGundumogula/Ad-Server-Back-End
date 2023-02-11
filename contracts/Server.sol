@@ -1,10 +1,10 @@
 //SPDX-License-Identifier: UNLICENSED
 
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155URIStorage.sol";
+import "./Token.sol";
 
-contract Server is ERC1155URIStorage {
+contract Server is Token {
     using Counters for Counters.Counter;
     Counters.Counter public AdIds;
     Counters.Counter public PublisherIds;
@@ -24,20 +24,23 @@ contract Server is ERC1155URIStorage {
         uint256 clicks;
         uint256 display;
         address Advertiser;
-        address[] publishers;
+        uint256[] PublisherIds;
         bool campaignRunning;
     }
 
     struct Publisher {
         uint256 id;
+        string url;
         address publisher;
         uint256 clickReward;
         uint256 displayReward;
+        uint256[] AdIds;
     }
 
     mapping(uint256 => Ad) public IdToCampaign;
-    mapping(uint256 => address) public AdToPublisher;
     mapping(uint256 => Publisher) public IdToPublisher;
+    mapping(address => uint256) public PublisherAddressToId;
+    mapping(uint256 => string) public PublisherIdToSite;
     mapping(address => uint256[]) public AdIdsListByAdvertiser;
     mapping(address => uint256[]) public runningCampaignIdsListByAdvertiser;
     mapping(uint256 => bool) IsCampaignCreated;
@@ -68,13 +71,6 @@ contract Server is ERC1155URIStorage {
         bool campaignRunning
     );
 
-    event Impression(
-        uint256 id,
-        uint256 clicks,
-        uint256 currentFunds,
-        address Advertiser
-    );
-
     event Click(
         uint256 id,
         uint256 clicks,
@@ -86,21 +82,21 @@ contract Server is ERC1155URIStorage {
         uint256 id,
         uint256 clickReward,
         uint256 displayReward,
-        address publisher
+        address publisher,
+        string url
     );
 
     event AdServed(
         uint256 id,
         uint256 currentFunds,
         address Advertiser,
-        address publisher
+        uint publisher
     );
 
-    constructor() ERC1155("") {
+    constructor() {
         nativeTokenPrice = 0.000001 ether;
         nativeTokenId = AdIds.current();
         owner = msg.sender;
-        _mint(owner, nativeTokenId, 100000 ether, "");
     }
 
     function buyAdTokens() public {
@@ -128,7 +124,7 @@ contract Server is ERC1155URIStorage {
             0,
             0,
             msg.sender,
-            new address[](0),
+            new uint256[](0),
             false
         );
         IsCampaignCreated[id] = true;
@@ -234,24 +230,36 @@ contract Server is ERC1155URIStorage {
 
     function createPublisher(
         uint256 _clickReward,
-        uint256 _displayReward
+        uint256 _displayReward,
+        string memory _url
     ) public {
         //this function makes the user a publisher
         require(
             IsPublisher[msg.sender] == false,
             "You are already a publisher"
         );
+
         PublisherIds.increment();
         uint256 id = PublisherIds.current();
         IdToPublisher[id] = Publisher(
             id,
+            _url,
             msg.sender,
             _clickReward,
-            _displayReward
+            _displayReward,
+            new uint256[](0)
         );
         IsPublisher[msg.sender] = true;
         publishersList.push(msg.sender);
-        emit PublisherCreated(id, _clickReward, _displayReward, msg.sender);
+        PublisherAddressToId[msg.sender] = id;
+        PublisherIdToSite[id] = _url;
+        emit PublisherCreated(
+            id,
+            _clickReward,
+            _displayReward,
+            msg.sender,
+            _url
+        );
     }
 
     function SubscribetoPublisher(uint256 _id, address _publisher) public {
@@ -271,7 +279,7 @@ contract Server is ERC1155URIStorage {
                     IdToPublisher[_id].displayReward,
             "Insufficient funds"
         );
-        IdToCampaign[_id].publishers.push(_publisher);
+        IdToCampaign[_id].PublisherIds.push(PublisherAddressToId[_publisher]);
         IsPublisherAdded[_id][_publisher] = true;
     }
 
@@ -286,12 +294,12 @@ contract Server is ERC1155URIStorage {
             IsPublisherAdded[_id][_publisher] == true,
             "Publisher is not added"
         );
-        for (uint i = 0; i < IdToCampaign[_id].publishers.length; i++) {
-            if (IdToCampaign[_id].publishers[i] == _publisher) {
-                IdToCampaign[_id].publishers[i] = IdToCampaign[_id].publishers[
-                    IdToCampaign[_id].publishers.length - 1
-                ];
-                IdToCampaign[_id].publishers.pop();
+        uint256 publisherId = PublisherAddressToId[_publisher];
+        for (uint i = 0; i < IdToCampaign[_id].PublisherIds.length; i++) {
+            if (IdToCampaign[_id].PublisherIds[i] == publisherId) {
+                IdToCampaign[_id].PublisherIds[i] = IdToCampaign[_id]
+                    .PublisherIds[IdToCampaign[_id].PublisherIds.length - 1];
+                IdToCampaign[_id].PublisherIds.pop();
                 IsPublisherAdded[_id][_publisher] = false;
             }
         }
@@ -331,7 +339,7 @@ contract Server is ERC1155URIStorage {
             _id,
             IdToCampaign[_id].currentFunds,
             IdToCampaign[_id].Advertiser,
-            _publisher
+            PublisherAddressToId[_publisher]
         );
         return uri(IdToCampaign[_id].id);
     }
@@ -353,5 +361,10 @@ contract Server is ERC1155URIStorage {
             IdToPublisher[_adID].clickReward,
             ""
         );
+        uint publisherId = PublisherAddressToId[_publisher];
+        IdToCampaign[_adID].totalFunds -= IdToPublisher[publisherId]
+            .clickReward;
+        IdToCampaign[_adID].currentFunds -= IdToPublisher[publisherId]
+            .clickReward;
     }
 }
