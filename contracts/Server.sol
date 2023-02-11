@@ -39,7 +39,6 @@ contract Server is Token {
     mapping(uint256 => Publisher) public IdToPublisher;
     mapping(address => uint256) public PublisherAddressToId;
     mapping(uint256 => string) public PublisherIdToSite;
-    mapping(uint256 => uint256[]) public AdIdsListByPublisher;
     mapping(address => uint256[]) public AdIdsListByAdvertiser;
     mapping(address => uint256[]) public runningCampaignIdsListByAdvertiser;
     mapping(uint256 => bool) IsCampaignCreated;
@@ -54,25 +53,20 @@ contract Server is Token {
         bool campaignRunning
     );
 
-    event campaignStarted(
+    event Click(uint256 id, uint256 currentFunds, address Publisher);
+
+    event fundsAdded(
         uint256 id,
         uint256 totalFunds,
         address Advertiser,
-        bool campaignRunning
+        uint256 AddedAmount
     );
 
-    event campaignStopped(
+    event fundsRemoved(
         uint256 id,
         uint256 totalFunds,
         address Advertiser,
-        bool campaignRunning
-    );
-
-    event Click(
-        uint256 id,
-        uint256 clicks,
-        uint256 currentFunds,
-        address Advertiser
+        uint256 RemovedAmount
     );
 
     event PublisherCreated(
@@ -91,13 +85,8 @@ contract Server is Token {
     );
 
     constructor() {
-        nativeTokenPrice = 0.000001 ether;
         nativeTokenId = AdIds.current();
         owner = msg.sender;
-    }
-
-    function buyAdTokens() public {
-        //this function is used to buy tokens
     }
 
     function createAd(
@@ -147,7 +136,6 @@ contract Server is Token {
         runningCampaignIdsList.push(Id);
         runningCampaignIdsListByAdvertiser[msg.sender].push(Id);
         setApprovalForAll(address(this), true);
-        emit campaignStarted(Id, IdToCampaign[Id].totalFunds, msg.sender, true);
     }
 
     function stopCampaign(uint256 _id) public {
@@ -197,6 +185,12 @@ contract Server is Token {
         );
         IdToCampaign[_id].totalFunds += amount;
         IdToCampaign[_id].currentFunds += amount;
+        emit fundsAdded(
+            _id,
+            IdToCampaign[_id].totalFunds,
+            IdToCampaign[_id].Advertiser,
+            amount
+        );
     }
 
     function removeFundsFromCampaign(uint256 _id, uint256 amount) public {
@@ -211,6 +205,12 @@ contract Server is Token {
         );
         IdToCampaign[_id].currentFunds -= amount;
         IdToCampaign[_id].totalFunds -= amount;
+        emit fundsRemoved(
+            _id,
+            IdToCampaign[_id].totalFunds,
+            IdToCampaign[_id].Advertiser,
+            amount
+        );
     }
 
     function createPublisher(
@@ -359,5 +359,7 @@ contract Server is Token {
             .clickReward;
         IdToCampaign[_adID].currentFunds -= IdToPublisher[publisherId]
             .clickReward;
+        IdToCampaign[_adID].clicks += 1;
+        emit Click(_adID, IdToCampaign[_adID].currentFunds, _publisher);
     }
 }
