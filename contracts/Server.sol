@@ -48,7 +48,7 @@ contract Server is Token {
         address Advertiser
     );
 
-    event Click(uint256 id, address Publisher);
+    event Click(uint256 id, uint256 PublisherId);
     event CampaignStarted(uint256 id);
     event CampaignStopped(uint256 id);
     event PublisherAdded(uint256 id, uint256 PublisherId);
@@ -331,6 +331,6 @@ contract Server is Token {
         IdToCampaign[_adID].currentFunds -= IdToPublisher[publisherId]
             .clickReward;
         IdToCampaign[_adID].clicks += 1;
-        emit Click(_adID, _publisher);
+        emit Click(_adID, PublisherAddressToId[_publisher]);
     }
 }
