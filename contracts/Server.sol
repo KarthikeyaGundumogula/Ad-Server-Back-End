@@ -276,6 +276,7 @@ contract Server is Token {
 
     function serveAd(
         uint256 _id,
+        address _publisher,
         address _Advertiser
     ) public returns (string memory adURI) {
         //this function serves the Ad to the user
@@ -298,13 +299,13 @@ contract Server is Token {
         IdToCampaign[_id].display += 1;
         _safeTransferFrom(
             _Advertiser,
-            msg.sender,
+            _publisher,
             nativeTokenId,
             IdToPublisher[_id].displayReward,
             ""
         );
 
-        emit AdServed(_id, PublisherAddressToId[msg.sender]);
+        emit AdServed(_id, PublisherAddressToId[_publisher]);
         return uri(IdToCampaign[_id].id);
     }
 
